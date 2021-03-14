@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script src="butiran.js"></script>
+</canvas>
+
+<script>
+
+var taOut;  								// text area for output parameter
+var taIn;									// text area for input parameter
+var caOut;									// canvas for showing chart
+var btReadTable, btComputeTable, btClear; 	// buttons variable
+var xmin, ymin, xmax, ymax, XMIN, YMIN, XMAX, YMAX;
+var time, intensity, tau, tau_arr, G2;
+
+function readTable(){
+		
+	time = [];
+	intensity = [];
+	var lines = taIn.value;
+	var value = undefined;
+	var line = lines.split("\n");
+	var N = line.length;
+	for(var i = 1; i < N; i++) {
+		var col = line[i].split("\t");
+		time.push(col[0]);
+		intensity.push(col[1]);
+	}
+}
+
+// Calculate Auto Correlation
+function autoCorrelationCalculate(){
+	G2 = [];
+	tau_arr = [];
+	for(var tau=0;tau<time.length-1;tau++){
+		var sum = 0;
+		var N_sum = 0;
+		for(var i=0;i<time.length;i++){
+			if(typeof intensity[i+tau]!="undefined"){
+				sum = sum + intensity[i]*intensity[i+tau];
+				N_sum++;
+			} else {
+				break;
+			} 
+		} 
+		G2.push(sum/N_sum);
+		tau_arr.push(tau*(time[2]-time[1]))
+	}
+}
+
+// Show Auto Correlation chart
+function autoCorrelationShow(){
+	xmax = tau_arr.length;
+	ymax = G2.reduce(function(a,b){return Math.max(a,b)});
+	ymax = Math.ceil(ymax/10)*5;
+	
+	var cx = caOut.getContext("2d");
+	cx.beginPath();
+	cx.strokeStyle = "#000000";
+	cx.fillStyle = "#000000";
+	cx.lineWidth = 1;
+	cx.moveTo(scalingx_chart(tau_arr[0]),scalingy_chart(G2[0]));
+
+	for(var x=0; x<tau_arr.length; x++){
+		tout(tau_arr[x]+"\t"+G2[x]+"\n")
+		var X = scalingx_chart(tau_arr[x]);
+		var Y = scalingy_chart(G2[x]);
+		cx.lineTo(X,Y);
+		cx.arc(X,Y,2, 0, 2*Math.PI); 
+		cx.font = "10px Arial";
+		cx.fillText(G2[x].toFixed(2),X,Y-5);
+	}
+	cx.stroke();
+
+
+	//cx.arc(10,10,2, 0, 2*Math.PI); 
+	function scalingx_chart(x) {
+		var X = (x - xmin) / (xmax - xmin);
+		X *= (XMAX - XMIN);
+		X += XMIN;
+		return X;
+	}
+	function scalingy_chart(y) {
+		var Y = (y - ymin) / (ymax - ymin);
+		Y *= (YMAX - YMIN);
+		Y += YMIN;
+		return Y;
+	}
+}
+
+function setLayout() {
+	var bgColors	= ["#f8f8f8","#eee"];
+	var btDim 		= [80,31];
+	var caOutDim 	= [500,150];		// dimension of canvas
+	var taOutDim 	= [caOutDim[0],300];
+	var taInDim 	= [btDim[0]*3,(caOutDim[1]+taOutDim[1]-btDim[1])];
+	
+	
+	btReadTable = document.createElement("button");
+	btReadTable.innerHTML = "Read";
+	btReadTable.style.width = parseInt(btDim[0]) + "px";
+	btReadTable.style.height = parseInt(btDim[1]) + "px";
+	btReadTable.disabled = false;
+	
+	btComputeTable = document.createElement("button");
+	btComputeTable.innerHTML = "Compute";
+	btComputeTable.style.width = parseInt(btDim[0]) + "px";
+	btComputeTable.style.height = parseInt(btDim[1]) + "px";
+	btComputeTable.disabled = false;
+	
+	btClear = document.createElement("button");
+	btClear.innerHTML = "Clear";
+	btClear.style.width = parseInt(btDim[0]) + "px";
+	btClear.style.height = parseInt(btDim[1]) + "px";
+	
+	// text area INPUT PARAMETER layout
+	taIn = document.createElement("textarea");
+	taIn.style.width = parseInt(taInDim[0]) + "px";
+	taIn.style.height = parseInt(taInDim[1]) + "px";
+	taIn.style.overflowY = "scroll";
+	
+	// text area OUTPUT PARAMETER layout
+	taOut = document.createElement("textarea");
+	taOut.style.width = parseInt(taOutDim[0]) + "px";
+	taOut.style.height = parseInt(taOutDim[1]) + "px";
+	taOut.style.overflowY = "scroll";
+	
+	// canvas for draw simulation
+	caOut = document.createElement("canvas");
+	caOut.width = caOutDim[0];
+	caOut.height = caOutDim[1];
+	caOut.style.width = caOutDim[0] + "px";
+	caOut.style.height = caOutDim[1]+ "px";
+	caOut.style.background = bgColors[1];
+	caOut.style.border = "1px solid #ccc";
+	caOut.style.float = "left";
+	
+	// make division
+	var divLeft = document.createElement("div");
+	//divLeft.style.border = "1px solid #ccc";
+	//divLeft.style.background = bgColors[1];
+	divLeft.style.width = parseInt(taInDim[0])+5+"px";
+	divLeft.style.height = parseInt(taOutDim[1]+btDim[1])+"px";
+	divLeft.style.float = "left";
+
+	var divRight = document.createElement("div");
+	//divRight.style.border = "1px solid #ccc";
+	//divRight.style.background = bgColors[1];
+	divRight.style.width = caOutDim[0]+5+"px";
+	divRight.style.height = caOutDim[1]+taOutDim[1]+5+"px";
+	divRight.style.float = "left";
+	
+	document.body.append(divLeft);
+		divLeft.append(taIn);
+		divLeft.append(btReadTable);
+		divLeft.append(btComputeTable);
+		divLeft.append(btClear);
+	document.body.append(divRight);
+		divRight.append(taOut);
+		divRight.append(caOut);
+
+	btReadTable.addEventListener("click", clickButton);
+	btComputeTable.addEventListener("click", clickButton);
+	btClear.addEventListener("click", clickButton);
+}
+
+// Initialize parameters
+function initParams() {
+	xmin = 0;
+	ymin = 0;
+	xmax = 1;
+	ymax = 1;
+
+	XMIN = 0;
+	YMIN = parseInt(caOut.style.height);
+	XMAX = parseInt(caOut.style.width);
+	YMAX = 0;
+}
+
+function clickButton(){
+	var t = event.target;
+	var n = t.innerHTML;
+	console.log("Button click -> " + n);
+	
+	if(n == "Read") {
+		btReadTable.disabled	 	= false;
+		btComputeTable.disabled 	= false;
+		btClear.disabled			= false;
+		
+		clearCanvas();
+		readTable();
+	} else if(n == "Compute") {
+		btReadTable.disabled	 	= false;
+		btComputeTable.disabled 	= false;
+		btClear.disabled			= false;
+		autoCorrelationCalculate();
+		autoCorrelationShow();
+		
+	} else if(n == "Clear") {
+		clearCanvas();
+	}
+}
+
+// Clear canvas
+function clearCanvas() {
+	var cx = caOut.getContext("2d");
+	cx.clearRect(XMIN, YMAX, XMAX, YMIN);
+}
+
+// Show message on the output textarea
+function tout() {
+	var msg = arguments[0];
+	taOut.value += msg;
+	taOut.scrollTop = taOut.scrollHeight;
+}
+
+function main(){
+	setLayout();
+	initParams();
+}
+
+main()
+</script>
+</body>
+</html>
